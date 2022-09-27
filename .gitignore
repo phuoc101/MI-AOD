@@ -1,0 +1,13 @@
+*.log
+mmdet/
+*/__pycache__
+*.pyc
+_base_
+
+# images
+*.png
+*.jpg
+*.jpeg
+
+work_dirs/
+weights/

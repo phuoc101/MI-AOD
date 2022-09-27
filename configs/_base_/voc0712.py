@@ -1,5 +1,5 @@
 # Please change the dataset directory to your actual directory
-data_root = '$YOUR_DATASET_PATH/VOCdevkit/'
+data_root = '/media/phuoc101/imaunicorn/projects/computer_vision/datasets/voc/VOCdevkit/'
 
 # dataset settings
 dataset_type = 'VOCDataset'

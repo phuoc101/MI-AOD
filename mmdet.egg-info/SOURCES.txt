@@ -1,3 +1,4 @@
+LICENSE
 README.md
 setup.cfg
 setup.py
@@ -104,9 +105,10 @@ mmdet/models/backbones/res2net.py
 mmdet/models/backbones/resnet.py
 mmdet/models/backbones/resnext.py
 mmdet/models/backbones/ssd_vgg.py
+mmdet/models/dense_heads/MIAOD_head.py
+mmdet/models/dense_heads/MIAOD_retina_head.py
 mmdet/models/dense_heads/__init__.py
 mmdet/models/dense_heads/anchor_free_head.py
-mmdet/models/dense_heads/anchor_head.py
 mmdet/models/dense_heads/atss_head.py
 mmdet/models/dense_heads/base_dense_head.py
 mmdet/models/dense_heads/corner_head.py
@@ -122,7 +124,6 @@ mmdet/models/dense_heads/nasfcos_head.py
 mmdet/models/dense_heads/pisa_retinanet_head.py
 mmdet/models/dense_heads/pisa_ssd_head.py
 mmdet/models/dense_heads/reppoints_head.py
-mmdet/models/dense_heads/retina_head.py
 mmdet/models/dense_heads/retina_sepbn_head.py
 mmdet/models/dense_heads/rpn_head.py
 mmdet/models/dense_heads/rpn_test_mixin.py

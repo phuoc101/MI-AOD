@@ -59,6 +59,7 @@ def load_ann_list(paths):
 
 def update_X_L(uncertainty, X_all, X_L, X_S_size):
     uncertainty = uncertainty.cpu().numpy()
+    print(f"Uncertainty: {uncertainty}")
     all_X_U = np.array(list(set(X_all) - set(X_L)))
     uncertainty_X_U = uncertainty[all_X_U]
     arg = uncertainty_X_U.argsort()

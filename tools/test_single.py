@@ -28,7 +28,7 @@ def main():
     print(f"inference time: {elapsed*1000} ms")
     print(f"fps: {1/elapsed}")
     # uncertainty = calculate_uncertainty_single(cfg, model, args.img_file, return_box=False)
-    model.show_result(args.img_file, result, out_file=args.out_file)
+    model.show_result(args.img_file, result, out_file=args.out_file, score_thr=0.2)
     print('Image uncertainty is: ' + str(uncertainty.cpu().numpy()))
 
 if __name__ == '__main__':

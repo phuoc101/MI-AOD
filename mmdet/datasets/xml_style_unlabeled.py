@@ -10,7 +10,7 @@ from .custom import CustomDataset
 
 
 @DATASETS.register_module()
-class XMLDataset(CustomDataset):
+class XMLDatasetUnlabeled(CustomDataset):
     """XML dataset for detection.
 
     Args:
@@ -20,9 +20,10 @@ class XMLDataset(CustomDataset):
     """
 
     def __init__(self, min_size=None, **kwargs):
-        super(XMLDataset, self).__init__(**kwargs)
+        super(XMLDatasetUnlabeled, self).__init__(**kwargs)
         self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
         self.min_size = min_size
+        self.DUMMY_XML = osp.join(self.img_prefix, "Annotations", "000000_Tierankatu_nodrone_closeperson_2k.xml")
 
     def load_annotations(self, ann_file):
         """Load annotation from XML style ann_file.
@@ -37,8 +38,8 @@ class XMLDataset(CustomDataset):
         data_infos = []
         img_ids = mmcv.list_from_file(ann_file)
         for img_id in img_ids:
-            filename = f"JPEGImages/{img_id}.jpg"
-            xml_path = osp.join(self.img_prefix, "Annotations", f"{img_id}.xml")
+            filename = f"obj_train_data/{img_id}.png"
+            xml_path = osp.join(self.img_prefix, "Annotations", "000000_Tierankatu_nodrone_closeperson_2k.xml")
             tree = ET.parse(xml_path)
             root = tree.getroot()
             size = root.find("size")
@@ -48,7 +49,7 @@ class XMLDataset(CustomDataset):
                 width = int(size.find("width").text)
                 height = int(size.find("height").text)
             else:
-                img_path = osp.join(self.img_prefix, "JPEGImages", "{}.jpg".format(img_id))
+                img_path = osp.join(self.img_prefix, "obj_train_data", "{}.png".format(img_id))
                 img = Image.open(img_path)
                 width, height = img.size
             data_infos.append(dict(id=img_id, filename=filename, width=width, height=height))
@@ -60,7 +61,7 @@ class XMLDataset(CustomDataset):
         subset_data_infos = []
         for data_info in self.data_infos:
             img_id = data_info["id"]
-            xml_path = osp.join(self.img_prefix, "Annotations", f"{img_id}.xml")
+            xml_path = self.DUMMY_XML
             tree = ET.parse(xml_path)
             root = tree.getroot()
             for obj in root.findall("object"):
@@ -82,7 +83,7 @@ class XMLDataset(CustomDataset):
         """
 
         img_id = self.data_infos[idx]["id"]
-        xml_path = osp.join(self.img_prefix, "Annotations", f"{img_id}.xml")
+        xml_path = self.DUMMY_XML
         tree = ET.parse(xml_path)
         root = tree.getroot()
         bboxes = []
@@ -99,10 +100,10 @@ class XMLDataset(CustomDataset):
             # TODO: check whether it is necessary to use int
             # Coordinates may be float type
             bbox = [
-                float(bnd_box.find("xmin").text),
-                float(bnd_box.find("ymin").text),
-                float(bnd_box.find("xmax").text),
-                float(bnd_box.find("ymax").text),
+                int(float(bnd_box.find("xmin").text)),
+                int(float(bnd_box.find("ymin").text)),
+                int(float(bnd_box.find("xmax").text)),
+                int(float(bnd_box.find("ymax").text)),
             ]
             ignore = False
             if self.min_size:
@@ -149,7 +150,7 @@ class XMLDataset(CustomDataset):
 
         cat_ids = []
         img_id = self.data_infos[idx]["id"]
-        xml_path = osp.join(self.img_prefix, "Annotations", f"{img_id}.xml")
+        xml_path = self.DUMMY_XML
         tree = ET.parse(xml_path)
         root = tree.getroot()
         for obj in root.findall("object"):

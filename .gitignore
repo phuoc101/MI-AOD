@@ -1,5 +1,4 @@
 *.log
-mmdet/
 */__pycache__
 *.pyc
 _base_

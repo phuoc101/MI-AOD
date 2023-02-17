@@ -10,7 +10,7 @@ def get_X_L_0(cfg):
     X_all = np.arange(len(anns) + len(unanns), dtype=int)
     X_L = X_all[: len(anns)].copy()
     X_U = X_all[len(anns) :].copy()
-    anns = np.hstack((anns, unanns))
+    anns = np.concatenate((anns, unanns))
     return X_L, X_U, X_all, anns
 
 
@@ -52,14 +52,11 @@ def update_X_L(uncertainty, X_all, X_L, X_S_size):
     uncertainty = uncertainty.cpu().numpy()
     all_X_U = np.array(list(set(X_all) - set(X_L)))
     arg = uncertainty.argsort()
+    uncertainty_sorted = uncertainty[arg]
     X_S = all_X_U[arg[-X_S_size:]]
+    X_U_sorted = all_X_U[arg]
     X_L_next = np.concatenate((X_L, X_S))
-    all_X_U_next = np.array(list(set(X_all) - set(X_L_next)))
-    np.random.shuffle(all_X_U_next)
-    X_U_next = all_X_U_next[: X_L_next.shape[0]]
-    if X_L_next.shape[0] > X_U_next.shape[0]:
-        np.random.shuffle(X_L_next)
-        X_U_next = np.concatenate((X_U_next, X_L_next[: X_L_next.shape[0] - X_U_next.shape[0]]))
+    X_U_next = np.array(list(set(X_all) - set(X_L_next)))
     X_L_next.sort()
     X_U_next.sort()
-    return X_L_next, X_U_next
+    return X_L_next, X_U_next, X_U_sorted, uncertainty_sorted

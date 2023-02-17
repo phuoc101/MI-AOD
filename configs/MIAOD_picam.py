@@ -10,9 +10,9 @@ data = dict(
         img_prefix=data_root,
     )
 )
-model = dict(bbox_head=dict(C=2))
+model = dict(bbox_head=dict(C=2))  # Change prediction head to 2 classes
 # The initial learning rate, momentum, weight decay can be changed here.
-optimizer = dict(type="Adam", lr=1e-3, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type="SGD", lr=1e-3, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=None)
 # The moment when the learning rate drops can be changed here.
 lr_config = dict(policy="step", step=[2])
@@ -22,7 +22,7 @@ checkpoint_config = dict(interval=1)
 log_config = dict(interval=50)
 # The number of epochs for Label Set Training step and those for Re-weighting and Minimizing/Maximizing Instance
 # Uncertainty steps can be changed here.
-epoch_ratio = [20, 5]
+epoch_ratio = [5, 2]
 # The frequency of evaluating the model can be changed here.
 evaluation = dict(interval=epoch_ratio[0], metric="mAP")
 # The number of outer loops (i.e., all 3 training steps except the first Label Set Training step) can be changed here.

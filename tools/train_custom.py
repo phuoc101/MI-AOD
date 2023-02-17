@@ -14,11 +14,10 @@ from mmcv.utils import get_git_hash
 
 from mmdet import __version__
 
-from mmdet.apis import train_detector
+from mmdet.apis import train_detector, set_random_seed, calculate_uncertainty
 from mmdet.models import build_detector
 from mmdet.utils import collect_env, get_root_logger
 
-from mmdet.apis import calculate_uncertainty
 
 # from mmcv.parallel import MMDataParallel, MMDistributedDataParallel
 from mmdet.datasets import build_dataloader, build_dataset
@@ -44,7 +43,7 @@ def parse_args():
     group_gpus.add_argument(
         "--gpu-ids", type=int, nargs="+", help="ids of gpus to use (only applicable to non-distributed training)"
     )
-    # parser.add_argument('--seed', type=int, default=666, help='random seed')
+    parser.add_argument('--seed', type=int, default=666, help='random seed')
     parser.add_argument(
         "--deterministic", action="store_true", help="whether to set deterministic options for CUDNN backend."
     )
@@ -107,11 +106,11 @@ def main():
     # ---------- MI-AOD Training and Test Start Here ---------- #
 
     # set random seeds
-    # if args.seed is not None:
-    #     logger.info(f'Set random seed to {args.seed}, deterministic: {args.deterministic}')
-    #     set_random_seed(args.seed, deterministic=args.deterministic)
-    # cfg.seed = args.seed
-    # meta['seed'] = args.seed
+    if args.seed is not None:
+        logger.info(f"Set random seed to {args.seed}, deterministic: {args.deterministic}")
+        set_random_seed(args.seed, deterministic=args.deterministic)
+    cfg.seed = args.seed
+    meta["seed"] = args.seed
     cfg.seed = None
     X_L, X_U, X_all, all_anns = get_X_L_0(cfg)
 
@@ -120,15 +119,21 @@ def main():
     # Save initial labeled and unlabeled sets
     with open(cfg.work_directory + "/X_L_0.txt", "w+") as f_l:
         for im in X_L:
-            f_l.write(str(im) + "\n")
+            f_l.write(str(all_anns[im]) + "\n")
         f_l.close()
     with open(cfg.work_directory + "/X_U_0.txt", "w+") as f_u:
         for im in X_U:
-            f_u.write(str(im) + "\n")
+            f_u.write(str(all_anns[im]) + "\n")
         f_u.close()
     logger.info(f"Labeled images: {len(X_L)}, Unlabeled images: {len(X_U)}")
     initial_step = cfg.lr_config.step
     for cycle in cfg.cycles:
+        # set random seeds
+        if args.seed is not None:
+            logger.info(f"Set random seed to {args.seed}, deterministic: {args.deterministic}")
+            set_random_seed(args.seed, deterministic=args.deterministic)
+        cfg.seed = args.seed
+        meta["seed"] = args.seed
         cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
         # load model
         model = build_detector(cfg.model, train_cfg=cfg.train_cfg, test_cfg=cfg.test_cfg)
@@ -265,9 +270,17 @@ def main():
         data_loader = build_dataloader(
             dataset_al, samples_per_gpu=1, workers_per_gpu=cfg.data.workers_per_gpu, dist=False, shuffle=False
         )
+
+        # set random seeds
+        if args.seed is not None:
+            logger.info(f"Set random seed to {args.seed}, deterministic: {args.deterministic}")
+            set_random_seed(args.seed, deterministic=args.deterministic)
+        cfg.seed = args.seed
+        meta["seed"] = args.seed
+
         uncertainty = calculate_uncertainty(cfg, model, data_loader, return_box=False)
         # update labeled set
-        X_L, X_U = update_X_L(uncertainty, X_all, X_L, cfg.X_S_size)
+        X_L, X_U, X_U_sorted, uncertainty_sorted = update_X_L(uncertainty, X_all, X_L, cfg.X_S_size)
         # save set and model
         np.save(cfg.work_directory + "/X_L_" + str(cycle + 1) + ".npy", all_anns[X_L])
         np.save(cfg.work_directory + "/X_U_" + str(cycle + 1) + ".npy", all_anns[X_U])
@@ -278,6 +291,10 @@ def main():
         with open(cfg.work_directory + f"/X_U_{cycle+1}.txt", "w+") as f_u:
             for im in X_U:
                 f_u.write(str(all_anns[im]) + "\n")
+            f_u.close()
+        with open(cfg.work_directory + f"/X_U_sorted_{cycle+1}.txt", "w+") as f_u:
+            for idx, im in enumerate(X_U_sorted):
+                f_u.write(f"{all_anns[im]} {uncertainty_sorted[idx]}\n")
             f_u.close()
 
 

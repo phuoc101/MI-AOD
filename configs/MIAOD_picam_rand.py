@@ -2,7 +2,7 @@
 # Please change the dataset directory to your actual directory
 data_root = "/media/phuoc101/imaunicorn/projects/computer_vision/datasets/picam_data/Full_dataset_AL/"
 
-_base_ = ["./_base_/retinanet_r50_fpn.py", "./_base_/voc_picam.py", "./_base_/custom_runtime.py"]
+_base_ = ["./_base_/retinanet_r50_fpn.py", "./_base_/voc_picam_rand.py", "./_base_/custom_runtime.py"]
 # We use PASCAL VOC 2007+2012 trainval sets to train, so we also use them to select the informative samples.
 data = dict(
     test=dict(

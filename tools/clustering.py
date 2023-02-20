@@ -15,11 +15,11 @@ PICAM_ROOT = os.path.join(DATA_ROOT, "picam_data/Full_dataset_AL")
 def parse_args():
     parser = argparse.ArgumentParser(description="Inference on single images")
     parser.add_argument("--config_file", help="train config file path")
-    parser.add_argument("--ckpt_file", help="model checkpoint file path")
+    parser.add_argument("--ckpt_file", default=None, help="model checkpoint file path")
     parser.add_argument("--img_file", help="image files path")
     parser.add_argument("--out_file", help="output image file path")
     parser.add_argument("--local_rank", type=int, default=0)
-    parser.add_argument("--num_to_cluster", type=int, default=1000)
+    parser.add_argument("--num_to_cluster", type=int, default=None)
     parser.add_argument("--num_clusters", type=int, default=100)
     args = parser.parse_args()
     if "LOCAL_RANK" not in os.environ:
@@ -36,7 +36,10 @@ def main():
     imgs = []
     uncertainties = []
     with open(args.img_file, "r") as f:
-        lines = [line.replace("\n", "") for line in f.readlines()[-args.num_to_cluster :]]
+        lines_from_file = f.readlines()
+        if args.num_to_cluster is None:
+            args.num_to_cluster = len(lines_from_file)
+        lines = [line.replace("\n", "") for line in lines_from_file[-args.num_to_cluster :]]
         for pair in lines:
             im, uncertainty = pair.split()
             imgs.append(os.path.join(PICAM_ROOT, "obj_train_data", im + ".png"))
@@ -71,7 +74,7 @@ def main():
     elapsed = end - start
     print(f"inference time: {elapsed*1000} ms")
     cluster_idx, cluster_means = kmeans(
-        X=features, num_clusters=args.num_clusters, distance="euclidean", device=torch.device("cuda:0")
+        X=features, num_clusters=args.num_clusters, distance="cosine", device=torch.device("cuda:0")
     )
     for i in range(len(imgs)):
         print(f"{imgs[i]}: {cluster_idx[i]} {uncertainties[i]}")

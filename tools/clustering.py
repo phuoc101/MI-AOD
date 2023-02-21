@@ -81,13 +81,14 @@ def main():
     selected = dict()
     for i in trange(args.num_to_cluster, desc="Selecting images"):
         cluster = cluster_idx[i].item()
+        dist2mean = np.linalg.norm(cluster_means[cluster].cpu().numpy() - features[i].cpu().numpy())
         if cluster not in selected.keys():
-            selected[cluster] = {"img": os.path.basename(imgs[i]).replace(".png", ""), "unc": uncertainties[i]}
+            selected[cluster] = {"img": os.path.basename(imgs[i]).replace(".png", ""), "dist2mean": dist2mean}
         else:
-            if uncertainties[i] > selected[cluster]["unc"]:
+            if dist2mean > selected[cluster]["dist2mean"]:
                 selected[cluster] = {
                     "img": os.path.basename(imgs[i]).replace(".png", ""),
-                    "unc": uncertainties[i],
+                    "dist2mean": dist2mean,
                 }
     print(selected)
     with open("to_label.txt", "w+") as f:

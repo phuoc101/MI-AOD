@@ -23,7 +23,8 @@ class XMLDatasetUnlabeled(CustomDataset):
         super(XMLDatasetUnlabeled, self).__init__(**kwargs)
         self.cat2label = {cat: i for i, cat in enumerate(self.CLASSES)}
         self.min_size = min_size
-        self.DUMMY_XML = osp.join(self.img_prefix, "Annotations", "000000_Tierankatu_nodrone_closeperson_2k.xml")
+        # Need to figure out how to do without this, hotfix for now
+        self.DUMMY_XML = osp.join(self.img_prefix, "Annotations", "000001_Tierankatu_orangedrone_low_fps.xml")
 
     def load_annotations(self, ann_file):
         """Load annotation from XML style ann_file.
@@ -39,7 +40,7 @@ class XMLDatasetUnlabeled(CustomDataset):
         img_ids = mmcv.list_from_file(ann_file)
         for img_id in img_ids:
             filename = f"obj_train_data/{img_id}.png"
-            xml_path = osp.join(self.img_prefix, "Annotations", "000000_Tierankatu_nodrone_closeperson_2k.xml")
+            xml_path = osp.join(self.img_prefix, "Annotations", "000001_Tierankatu_orangedrone_low_fps.xml")
             tree = ET.parse(xml_path)
             root = tree.getroot()
             size = root.find("size")

@@ -34,21 +34,14 @@ def main():
     model = init_detector(args.config_file, args.ckpt_file, device="cuda:0")
     start = time.perf_counter()
     imgs = []
-    uncertainties = []
     with open(args.img_file, "r") as f:
         lines_from_file = f.readlines()
         if args.num_to_cluster is None:
             args.num_to_cluster = len(lines_from_file)
         lines = [line.replace("\n", "") for line in lines_from_file[-args.num_to_cluster :]]
-        for pair in lines:
-            im, uncertainty = pair.split()
+        for im in lines:
             imgs.append(os.path.join(PICAM_ROOT, "obj_train_data", im + ".png"))
-            uncertainties.append(float(uncertainty))
     imgs = np.array(imgs)
-    uncertainties = np.array(uncertainties)
-    arg = np.argsort(imgs)
-    imgs = np.sort(imgs)
-    uncertainties = uncertainties[arg]
     features = None
     for im in trange(len(imgs), desc="Extracting features"):
         # extracted = torch.flatten(extract_features(model, imgs[im])[4])
@@ -76,8 +69,6 @@ def main():
     cluster_idx, cluster_means = kmeans(
         X=features, num_clusters=args.num_clusters, distance="cosine", device=torch.device("cuda:0")
     )
-    for i in range(len(imgs)):
-        print(f"{imgs[i]}: {cluster_idx[i]} {uncertainties[i]}")
     selected = dict()
     for i in trange(args.num_to_cluster, desc="Selecting images"):
         cluster = cluster_idx[i].item()

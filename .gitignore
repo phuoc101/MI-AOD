@@ -8,5 +8,8 @@ _base_
 *.jpg
 *.jpeg
 
+*.pyc
 work_dirs/
 weights/
+*.txt
+obj_train_data/

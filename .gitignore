@@ -1,7 +1,6 @@
 *.log
 */__pycache__
 *.pyc
-_base_
 
 # images
 *.png

@@ -128,6 +128,7 @@ def main():
     logger.info(f"Labeled images: {len(X_L)}, Unlabeled images: {len(X_U)}")
     initial_step = cfg.lr_config.step
     for cycle in cfg.cycles:
+        logger.info(f">>>>> BEGIN CYCLE {cycle} <<<<<")
         # set random seeds
         if args.seed is not None:
             logger.info(f"Set random seed to {args.seed}, deterministic: {args.deterministic}")
@@ -160,6 +161,7 @@ def main():
         model.CLASSES = datasets[0].CLASSES
 
         for epoch in range(cfg.epoch):
+            logger.info(f">>>>> BEGIN EPOCH {epoch} <<<<<")
             # Only in the last 3 epoch does the learning rate need to be reduced and the model needs to be evaluated.
             if epoch == cfg.epoch - 1:
                 cfg.lr_config.step = initial_step
@@ -254,7 +256,7 @@ def main():
             cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
             datasets = [build_dataset(cfg.data.train)]
             losstype.update_vars(0)
-            cfg.total_epochs = cfg.epoch_ratio[0]
+            cfg.total_epochs = 10
             cfg_bak = cfg.deepcopy()
             for name, value in model.named_parameters():
                 value.requires_grad = True

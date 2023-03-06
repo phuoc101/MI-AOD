@@ -35,7 +35,7 @@ def xyxy2xywh(x):
     return y
 
 
-def plot_one_box(x, img, color=None, label=None, line_thickness=3):
+def plot_one_box(x, img, color=None, label=None, line_thickness=1):
     # Plots one bounding box on image img
     tl = line_thickness or round(0.002 * (img.shape[0] + img.shape[1]) / 2) + 1  # line/font thickness
     color = color or [random.randint(0, 255) for _ in range(3)]
@@ -83,7 +83,7 @@ def nms(bbox_results, im_size, conf_thres=0.3, iomin_thres=0.5):
         w = np.maximum(0, xx2 - xx1 + 1)
         h = np.maximum(0, yy2 - yy1 + 1)
         # Overlapping ratio
-        overlap = (w * h) / np.minimum(areas[i], areas[tmp_ids]) > iomin_thres
+        overlap = (w * h) / areas[tmp_ids] > iomin_thres
         overlapping_boxes = tmp_ids[overlap]
         for ob in overlapping_boxes:
             if boxes[ob, 4] < box[4]:
@@ -116,7 +116,7 @@ def main():
         with open(args.out_txt, "a") as f:
             f.write(("%g " * len(line)).rstrip() % line + "\n")
         label = f"{classes[int(cls)]} {conf:.2f}"
-        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+        plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
     print(f"inference time: {elapsed*1000} ms")
     print(f"fps: {1/elapsed}")
     print("Image uncertainty is: " + str(uncertainty.cpu().numpy()))

@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--config_file", help="train config file path")
     parser.add_argument("--ckpt_file", default=None, help="model checkpoint file path")
     parser.add_argument("--img_file", default="./to_label.txt", help="image files path")
-    parser.add_argument("--out_path", default="./obj_train_data", help="output path")
+    parser.add_argument("--out_path", help="output path")
     parser.add_argument("--conf_thres", type=float, default=0.25)
     parser.add_argument("--iomin_thres", type=float, default=0.5)
     args = parser.parse_args()
@@ -105,29 +105,45 @@ def main():
             imgs.append(os.path.join(PICAM_ROOT, "obj_train_data", line + ".png"))
     start = time.perf_counter()
     os.makedirs(args.out_path, exist_ok=True)
-    with alive_bar(int(len(imgs)), ctrl_c=False, title=f"Getting pseudo-labels") as bar:
+    os.makedirs(os.path.join(args.out_path, "obj_train_data"), exist_ok=True)
+    os.makedirs(os.path.join(args.out_path, "frames"), exist_ok=True)
+    classes = model.CLASSES
+    # Prep for CVAT
+    with open(os.path.join(args.out_path, "obj.names"), "w+") as f:
+        for c in classes:
+            f.write(c + "\n")
+    with open(os.path.join(args.out_path, "obj.data"), "w+") as f:
+        f.write(f"classes = {len(classes)}\n")
+        f.write("train = data/train.txt\n")
+        f.write("names = data/obj.names\n")
+        f.write("backup = backup/")
+        f.close()
+
+    colors = [[random.randint(0, 255) for _ in range(3)] for _ in classes]
+    with alive_bar(int(len(imgs)), ctrl_c=False, title="Getting pseudo-labels") as bar:
         for im in imgs:
             bbox_results, uncertainty = inference_detector(model, im)
             bbox_results = nms(
                 bbox_results=bbox_results, conf_thres=args.conf_thres, iomin_thres=args.iomin_thres, im_size=im_size
             )
-            gn = torch.tensor(im_size)[[1, 0, 1, 0]]
             im0 = cv2.imread(im)
-            classes = model.CLASSES
-            colors = [[random.randint(0, 255) for _ in range(3)] for _ in classes]
+            gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]
             # Write results
             for *xyxy, conf, cls in reversed(bbox_results):
                 xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                line = (cls, *xywh, conf)
+                line = (cls, *xywh)
                 filename = os.path.basename(im)
                 label = f"{classes[int(cls)]} {conf:.2f}"
                 plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
                 # Save img
-                cv2.imwrite(os.path.join(args.out_path, filename), im0)
+                cv2.imwrite(os.path.join(args.out_path, "frames", filename), im0)
                 # save labels
-                with open(os.path.join(args.out_path, filename.replace(".png", ".txt")), "a") as f:
+                with open(os.path.join(args.out_path, "obj_train_data", filename.replace(".png", ".txt")), "a+") as f:
                     f.write(("%g " * len(line)).rstrip() % line + "\n")
+                with open(os.path.join(args.out_path, "train.txt"), "a+") as f:
+                    f.write(f"data/obj_train_data/{filename.replace('.png', '')}\n")
             bar()
+
     end = time.perf_counter()
     elapsed = end - start
     mean_time = elapsed / len(imgs)

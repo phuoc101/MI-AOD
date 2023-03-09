@@ -134,7 +134,7 @@ def main():
                 line = (cls, *xywh)
                 filename = os.path.basename(im)
                 label = f"{classes[int(cls)]} {conf:.2f}"
-                plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=3)
+                plot_one_box(xyxy, im0, label=label, color=colors[int(cls)], line_thickness=1)
                 # Save img
                 cv2.imwrite(os.path.join(args.out_path, "frames", filename), im0)
                 # save labels

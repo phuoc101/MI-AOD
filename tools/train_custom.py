@@ -33,6 +33,7 @@ def parse_args():
     parser.add_argument("config", help="train config file path")
     parser.add_argument("--work_directory", help="the dir to save logs and models")
     parser.add_argument("--resume-from", help="the checkpoint file to resume from")
+    parser.add_argument("--load-from", help="the checkpoint file to load from")
     parser.add_argument(
         "--no-validate", action="store_false", help="whether not to evaluate the checkpoint during training"
     )
@@ -43,7 +44,7 @@ def parse_args():
     group_gpus.add_argument(
         "--gpu-ids", type=int, nargs="+", help="ids of gpus to use (only applicable to non-distributed training)"
     )
-    parser.add_argument('--seed', type=int, default=666, help='random seed')
+    parser.add_argument("--seed", type=int, default=666, help="random seed")
     parser.add_argument(
         "--deterministic", action="store_true", help="whether to set deterministic options for CUDNN backend."
     )
@@ -73,6 +74,8 @@ def main():
         cfg.work_directory = osp.join("./work_dirs", osp.splitext(osp.basename(args.config))[0])
     if args.resume_from is not None:
         cfg.resume_from = args.resume_from
+    if args.load_from is not None:
+        cfg.load_from = args.load_from
     if args.gpu_ids is not None:
         cfg.gpu_ids = args.gpu_ids
     else:
@@ -128,7 +131,6 @@ def main():
     logger.info(f"Labeled images: {len(X_L)}, Unlabeled images: {len(X_U)}")
     initial_step = cfg.lr_config.step
     for cycle in cfg.cycles:
-        logger.info(f">>>>> BEGIN CYCLE {cycle} <<<<<")
         # set random seeds
         if args.seed is not None:
             logger.info(f"Set random seed to {args.seed}, deterministic: {args.deterministic}")
@@ -160,8 +162,10 @@ def main():
             )
         model.CLASSES = datasets[0].CLASSES
 
+        print("")
+        logger.info("\N{rocket}\N{rocket} BEGIN TRAINING \N{rocket}\N{rocket}\n")
         for epoch in range(cfg.epoch):
-            logger.info(f">>>>> BEGIN EPOCH {epoch} <<<<<")
+            logger.info(f"\N{cyclone}\N{cyclone} BEGIN EPOCH {epoch + 1} \N{cyclone}\N{cyclone}")
             # Only in the last 3 epoch does the learning rate need to be reduced and the model needs to be evaluated.
             if epoch == cfg.epoch - 1:
                 cfg.lr_config.step = initial_step
@@ -172,6 +176,7 @@ def main():
 
             # ---------- Label Set Training ----------
 
+            logger.info(">>>>> BEGIN INITIAL LABEL SET TRAINING <<<<<")
             if epoch == 0:
                 cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
                 datasets = [build_dataset(cfg.data.train)]
@@ -191,38 +196,9 @@ def main():
                 )
                 cfg = cfg_bak
 
-            # ---------- Re-weighting and Minimizing Instance Uncertainty ----------
-
-            cfg_u = create_X_U_file(cfg.deepcopy(), X_U, all_anns, cycle)
-            cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
-            datasets_u = [build_dataset(cfg_u.data.unlabeled)]
-            datasets = [build_dataset(cfg.data.train)]
-            losstype.update_vars(1)
-            cfg_u.total_epochs = cfg_u.epoch_ratio[1]
-            cfg.total_epochs = cfg.epoch_ratio[1]
-            cfg_u_bak = cfg_u.deepcopy()
-            cfg_bak = cfg.deepcopy()
-            for name, value in model.named_parameters():
-                if name in cfg.theta_f_1:
-                    value.requires_grad = False
-                elif name in cfg.theta_f_2:
-                    value.requires_grad = False
-                else:
-                    value.requires_grad = True
-            train_detector(
-                model,
-                [datasets, datasets_u],
-                [cfg, cfg_u],
-                distributed=distributed,
-                validate=(not args.no_validate),
-                timestamp=timestamp,
-                meta=meta,
-            )
-            cfg_u = cfg_u_bak
-            cfg = cfg_bak
-
             # ---------- Re-weighting and Maximizing Instance Uncertainty ----------
 
+            logger.info(f">>>>> BEGIN REWEIGHTING AND MAXIMIZING INSTANCE UNCERTAINTY {epoch + 1} <<<<<")
             cfg_u = create_X_U_file(cfg.deepcopy(), X_U, all_anns, cycle)
             cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
             datasets_u = [build_dataset(cfg_u.data.unlabeled)]
@@ -251,12 +227,44 @@ def main():
             cfg_u = cfg_u_bak
             cfg = cfg_bak
 
+            # ---------- Re-weighting and Minimizing Instance Uncertainty ----------
+
+            logger.info(f">>>>> BEGIN REWEIGHTING AND MINIMIZING INSTANCE UNCERTAINTY {epoch + 1} <<<<<")
+            cfg_u = create_X_U_file(cfg.deepcopy(), X_U, all_anns, cycle)
+            cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
+            datasets_u = [build_dataset(cfg_u.data.unlabeled)]
+            datasets = [build_dataset(cfg.data.train)]
+            losstype.update_vars(1)
+            cfg_u.total_epochs = cfg_u.epoch_ratio[1]
+            cfg.total_epochs = cfg.epoch_ratio[1]
+            cfg_u_bak = cfg_u.deepcopy()
+            cfg_bak = cfg.deepcopy()
+            for name, value in model.named_parameters():
+                if name in cfg.theta_f_1:
+                    value.requires_grad = False
+                elif name in cfg.theta_f_2:
+                    value.requires_grad = False
+                else:
+                    value.requires_grad = True
+            train_detector(
+                model,
+                [datasets, datasets_u],
+                [cfg, cfg_u],
+                distributed=distributed,
+                validate=(not args.no_validate),
+                timestamp=timestamp,
+                meta=meta,
+            )
+            cfg_u = cfg_u_bak
+            cfg = cfg_bak
+
             # ---------- Label Set Training ----------
 
+            logger.info(f">>>>> BEGIN LABEL SET TRAINING {epoch + 1} <<<<<")
             cfg = create_X_L_file(cfg, X_L, all_anns, cycle)
             datasets = [build_dataset(cfg.data.train)]
             losstype.update_vars(0)
-            cfg.total_epochs = 10
+            cfg.total_epochs = cfg.epoch_ratio[0]
             cfg_bak = cfg.deepcopy()
             for name, value in model.named_parameters():
                 value.requires_grad = True
@@ -264,6 +272,8 @@ def main():
                 model, datasets, cfg, distributed=distributed, validate=args.no_validate, timestamp=timestamp, meta=meta
             )
             cfg = cfg_bak
+            logger.info(f"\N{fire}\N{fire} FINISHED EPOCH {epoch + 1} \N{fire}\N{fire}")
+            print("")
 
         # ---------- Informative Image Selection ----------
 

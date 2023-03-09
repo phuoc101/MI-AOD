@@ -4,7 +4,7 @@ import time
 import torch
 from mmdet.apis.inference import init_detector, extract_features
 import numpy as np
-from tqdm import trange
+from alive_progress import alive_bar
 
 from kmeans_pytorch import kmeans
 
@@ -50,46 +50,50 @@ def main():
     imgs = np.sort(imgs)
     uncertainties = uncertainties[arg]
     features = None
-    for im in trange(len(imgs), desc="Extracting features"):
-        # extracted = torch.flatten(extract_features(model, imgs[im])[4])
-        extracted_raw = extract_features(model, imgs[im])
-        extracted = torch.flatten(
-            torch.cat(
-                (
-                    torch.mean(extracted_raw[0], axis=[2, 3]),
-                    torch.mean(extracted_raw[1], axis=[2, 3]),
-                    torch.mean(extracted_raw[2], axis=[2, 3]),
-                    torch.mean(extracted_raw[3], axis=[2, 3]),
-                    torch.mean(extracted_raw[4], axis=[2, 3]),
-                ),
-                dim=1,
+    with alive_bar(int(len(imgs)), ctrl_c=False, title=f"Extracting features") as bar:
+        for id, im in enumerate(imgs):
+            # extracted = torch.flatten(extract_features(model, imgs[im])[4])
+            extracted_raw = extract_features(model, im)
+            extracted = torch.flatten(
+                torch.cat(
+                    (
+                        torch.mean(extracted_raw[0], axis=[2, 3]),
+                        torch.mean(extracted_raw[1], axis=[2, 3]),
+                        torch.mean(extracted_raw[2], axis=[2, 3]),
+                        torch.mean(extracted_raw[3], axis=[2, 3]),
+                        torch.mean(extracted_raw[4], axis=[2, 3]),
+                    ),
+                    dim=1,
+                )
             )
-        )
-        if features is None:
-            features = torch.zeros([len(imgs), extracted.shape[0]])
-            features[0, :] = extracted
-        else:
-            features[im, :] = extracted
+            if features is None:
+                features = torch.zeros([len(imgs), extracted.shape[0]])
+                features[0, :] = extracted
+            else:
+                features[id, :] = extracted
+            bar()
     end = time.perf_counter()
     elapsed = end - start
     print(f"inference time: {elapsed*1000} ms")
     cluster_idx, cluster_means = kmeans(
         X=features, num_clusters=args.num_clusters, distance="cosine", device=torch.device("cuda:0")
     )
-    for i in range(len(imgs)):
-        print(f"{imgs[i]}: {cluster_idx[i]} {uncertainties[i]}")
+    for id, im in enumerate(imgs):
+        print(f"{im}: {cluster_idx[id]} {uncertainties[id]}")
     selected = dict()
-    for i in trange(args.num_to_cluster, desc="Selecting images"):
-        cluster = cluster_idx[i].item()
-        dist2mean = np.linalg.norm(cluster_means[cluster].cpu().numpy() - features[i].cpu().numpy())
-        if cluster not in selected.keys():
-            selected[cluster] = {"img": os.path.basename(imgs[i]).replace(".png", ""), "dist2mean": dist2mean}
-        else:
-            if dist2mean > selected[cluster]["dist2mean"]:
-                selected[cluster] = {
-                    "img": os.path.basename(imgs[i]).replace(".png", ""),
-                    "dist2mean": dist2mean,
-                }
+    with alive_bar(int(args.num_to_cluster), ctrl_c=False, title=f"Selecting images") as bar:
+        for id in range(args.num_to_cluster):
+            cluster = cluster_idx[id].item()
+            dist2mean = np.linalg.norm(cluster_means[cluster].cpu().numpy() - features[id].cpu().numpy())
+            if cluster not in selected.keys():
+                selected[cluster] = {"img": os.path.basename(imgs[id]).replace(".png", ""), "dist2mean": dist2mean}
+            else:
+                if dist2mean > selected[cluster]["dist2mean"]:
+                    selected[cluster] = {
+                        "img": os.path.basename(imgs[id]).replace(".png", ""),
+                        "dist2mean": dist2mean,
+                    }
+            bar()
     print(selected)
     with open("to_label.txt", "w+") as f:
         for im in selected.values():
